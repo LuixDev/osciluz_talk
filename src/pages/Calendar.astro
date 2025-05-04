@@ -1,0 +1,25 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Container from "@/components/container.astro";
+import Sectionhead from "@/components/sectionhead.astro";
+
+
+import Calendar1 from "@/components/Calendar1.astro";
+
+const events = [
+  { title: 'Video Call 1', date: '2025-05-05' },
+  { title: 'Meeting with Client', date: '2025-05-07' },
+];
+---
+
+<Layout title="calendar">
+  <Container>
+    <Sectionhead>
+      <Fragment slot="title">Calendar</Fragment>
+      <Fragment slot="desc">We are a small passionate team.</Fragment>
+    </Sectionhead>
+
+    <!-- Usamos CalendarComponent en lugar de Calendar -->
+    <Calendar1 />
+  </Container>
+</Layout>

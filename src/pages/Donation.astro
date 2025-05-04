@@ -1,0 +1,34 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Container from "@/components/container.astro";
+import Sectionhead from "@/components/sectionhead.astro";
+import logoImage from "@/assets/qrcode.png"; 
+
+const events = [
+  { title: 'Video Call 1', date: '2025-05-05' },
+  { title: 'Meeting with Client', date: '2025-05-07' },
+];
+---
+
+<Layout title="Donation">
+  <Container>
+    <Sectionhead>
+      <Fragment slot="title">Donation</Fragment>
+      <Fragment slot="desc">Support Sociluz Talk to make this platform a reality we need you support.</Fragment>
+    </Sectionhead>
+
+  
+
+    <!-- Imagen de código QR centrada al fondo -->
+    <div style="display: flex; justify-content: center; margin-top: 2rem;">
+      <iframe id="vakiIframe"
+        title="Osciluz Talk"
+        width="100%"
+        height="555"
+        style="max-width: 600px; border: none;"
+        src="https://vaki.co/iframe/5mhNvBJQEa1z2i1d1VBP">
+      </iframe>
+    </div>
+    
+  </Container>
+</Layout>

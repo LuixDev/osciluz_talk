@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Videollamada estilo Google Meet</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: Arial, sans-serif;
+      background-color: #202124;
+      color: white;
+    }
+    
+    video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
+}
+
+
+
+
+ 
+
+   
+    #localVideo {
+ 
+      height: 100vh;
+      width: 100vw;
+      border-radius: 8px;
+    
+    }
+
+    .controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 20px;
+      z-index: 3;
+    }
+
+    .controls button {
+      background-color: #3c4043;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 20px;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .controls button:hover {
+      background-color: #5f6368;
+    }
+
+    .hangup {
+      background-color: #ea4335;
+    }
+
+    .hangup:hover {
+      background-color: #d93025;
+    }
+
+    .status-message {
+      position: absolute;
+      top: 20px;
+      width: 100%;
+      text-align: center;
+      font-size: 18px;
+      color: #fff;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div class="video-container">
+    <div class="status-message" id="statusMessage"></div>
+    <video id="remoteVideo" autoplay playsinline></video>
+    <video id="localVideo" autoplay muted playsinline></video>
+
+    <div class="controls">
+      <button id="toggleVideo" title="Cámara"><i class="fas fa-video"></i></button>
+      <button id="toggleAudio" title="Micrófono"><i class="fas fa-microphone"></i></button>
+      <button id="shareScreen" title="Presentar pantalla"><i class="fas fa-desktop"></i></button>
+      <button id="startRecording" title="Grabar"><i class="fas fa-record-vinyl"></i></button>
+      <button id="openChat" title="Chat"><i class="fas fa-comments"></i></button>
+      <button id="emojiBtn" title="Emojis"><i class="fas fa-smile"></i></button>
+      <button class="hangup" id="hangupBtn" title="Colgar"><i class="fas fa-phone-slash"></i></button>
+    </div>
+    
+
+  <script type="module">
+    const signalingServerUrl = 'ws://localhost:3001';
+    const roomId = window.location.pathname.split('/').pop();
+    const socket = new WebSocket(signalingServerUrl);
+
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const statusMessage = document.getElementById('statusMessage');
+
+    const toggleVideoBtn = document.getElementById('toggleVideo');
+    const toggleAudioBtn = document.getElementById('toggleAudio');
+    const hangupBtn = document.getElementById('hangupBtn');
+
+    let peerConnection;
+    let localStream;
+    let isInitiator = false;
+    let videoEnabled = true;
+    let audioEnabled = true;
+
+    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    function hideStatusIfReady() {
+      if (remoteVideo.srcObject && localVideo.srcObject) {
+        statusMessage.style.display = 'none';
+      }
+    }
+
+    function setupPeerConnection() {
+      peerConnection = new RTCPeerConnection(config);
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+      peerConnection.ontrack = (event) => {
+        remoteVideo.srcObject = event.streams[0];
+        hideStatusIfReady();
+      };
+
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+        }
+      };
+    }
+
+    async function createOffer() {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.send(JSON.stringify({ type: 'offer', offer, roomId }));
+    }
+
+    async function handleOffer(offer) {
+      setupPeerConnection();
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.send(JSON.stringify({ type: 'answer', answer, roomId }));
+    }
+
+    async function handleAnswer(answer) {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    }
+
+    async function start() {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+        setupPeerConnection();
+        socket.send(JSON.stringify({ type: 'join', roomId }));
+      } catch (err) {
+        statusMessage.textContent = "";
+      }
+    }
+
+    socket.addEventListener('message', async (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'offer') {
+        await handleOffer(data.offer);
+      } else if (data.type === 'answer') {
+        await handleAnswer(data.answer);
+      } else if (data.type === 'candidate') {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+      } else if (data.type === 'joined') {
+        if (!isInitiator) {
+          isInitiator = true;
+          await createOffer();
+        }
+      }
+    });
+
+    toggleVideoBtn.addEventListener('click', () => {
+      videoEnabled = !videoEnabled;
+      localStream.getVideoTracks()[0].enabled = videoEnabled;
+      toggleVideoBtn.innerHTML = videoEnabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+    });
+
+    toggleAudioBtn.addEventListener('click', () => {
+      audioEnabled = !audioEnabled;
+      localStream.getAudioTracks()[0].enabled = audioEnabled;
+      toggleAudioBtn.innerHTML = audioEnabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+    });
+
+    hangupBtn.addEventListener('click', () => {
+      if (peerConnection) peerConnection.close();
+      socket.close();
+      window.location.href = '/'; // Redirigir o mostrar mensaje de finalización
+    });
+
+
+
+    document.getElementById('shareScreen').addEventListener('click', async () => {
+  try {
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+    const screenTrack = screenStream.getVideoTracks()[0];
+    const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+    if (sender) sender.replaceTrack(screenTrack);
+
+    screenTrack.onended = () => {
+      // Volver a la cámara cuando se detiene el compartir pantalla
+      const camTrack = localStream.getVideoTracks()[0];
+      if (sender) sender.replaceTrack(camTrack);
+    };
+  } catch (err) {
+    alert('Error al compartir pantalla');
+  }
+});
+
+// Grabación (solo local)
+let mediaRecorder;
+let recordedChunks = [];
+
+document.getElementById('startRecording').addEventListener('click', () => {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") {
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(localStream);
+    mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunks, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "grabacion.webm";
+      a.click();
+    };
+    mediaRecorder.start();
+    alert("Grabación iniciada");
+  } else {
+    mediaRecorder.stop();
+    alert("Grabación detenida");
+  }
+});
+
+// Chat
+document.getElementById('openChat').addEventListener('click', () => {
+  alert('Aquí se abriría una ventana de chat (pendiente de implementación real)');
+});
+
+// Emojis
+document.getElementById('emojiBtn').addEventListener('click', () => {
+  alert('Aquí se mostrarían emojis para enviar (pendiente de implementación real)');
+});
+
+    start();
+  </script>
+</body>
+</html>

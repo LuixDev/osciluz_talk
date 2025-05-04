@@ -1,0 +1,49 @@
+---
+import globeGif from "@/assets/globe-animation-thing.gif";
+import Link from "@/components/ui/link.astro";
+import { Icon } from "astro-icon/components";
+
+// Generar ID aleatorio para la llamada
+const callId = Math.random().toString(36).substring(2, 10);
+---
+
+<main class="grid lg:grid-cols-2 place-items-center pt-16 pb-8 md:pt-12 md:pb-24">
+  <div class="py-6 md:order-1 hidden md:block">
+    <img
+      src={globeGif.src}
+      alt="Animated Globe"
+      class="w-full max-w-md static z-0"
+      style="position: static !important; z-index: 0 !important;"
+      loading="lazy"
+    />
+  </div>
+  <div>
+    <h1 class="text-5xl lg:text-6xl xl:text-7xl font-bold lg:tracking-tight xl:tracking-tighter">
+      Video Calls with Real-Time Translation
+    </h1>
+    <p class="text-lg mt-4 text-slate-600 max-w-xl">
+      Connect without language barriers. Our video calling platform automatically translates audio in real time between several languages, including English, Spanish, and many more, allowing you to easily communicate with people from all over the world.
+    </p>
+
+    <div class="mt-6 flex flex-col sm:flex-row gap-3">
+      <Link
+        href={`/videollamada/${callId}`}
+        target="_blank"
+        class="flex gap-1 items-center justify-center bg-blue-600 text-white px-4 py-2 rounded"
+        rel="noopener">
+        <Icon class="text-white w-5 h-5" name="bx:bxs-video" />
+        Start Video Call
+      </Link>
+      <Link
+        size="lg"
+        style="outline"
+        rel="noopener"
+        href="https://github.com/surjithctly/astroship"
+        class="flex gap-1 items-center justify-center"
+        target="_blank">
+        <Icon class="text-black w-4 h-4" name="bx:message" />
+        Elegir Idioma
+      </Link>
+    </div>
+  </div>
+</main>

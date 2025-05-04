@@ -1,0 +1,65 @@
+---
+// @ts-ignore
+// @ts-ignore
+import { Icon } from "astro-icon/components";
+
+const features = [
+  {
+    title: "Real-Time Audio Translation",
+    description:
+      "Our platform translates video call audio in real time, allowing you to communicate without language barriers in multiple languages.",
+    icon: "bx:bxs-briefcase", // Change the icon to something related to global communication
+  },
+  {
+    title: "Global Connection",
+    description:
+      "Connect with people from all over the world, no matter the language. We offer support for multiple languages including English, Spanish, French, German, and more.",
+    icon: "bx:bxs-window-alt", // Network or global connection icon
+  },
+  {
+    title: "Easy to Use",
+    description:
+      "Start a video call with just one click. Our platform is intuitive and easy to use, perfect for all types of users.",
+    icon: "bx:bxs-data", // Interaction or click icon
+  },
+  {
+    title: "Security and Privacy",
+    description:
+      "Your video calls are protected with end-to-end encryption, ensuring your conversations are completely private and secure.",
+    icon: "bx:bxs-lock", // Security icon
+  },
+  {
+    title: "Compatible with All Devices",
+    description:
+      "Access our video calls from any device: phone, tablet, or computer. We adapt to you for a seamless experience.",
+    icon: "bx:bxs-phone", // Phone or device icon
+  },
+];
+
+---
+<div class="mt-16 md:mt-0">
+  <h2 class="text-4xl lg:text-5xl font-bold lg:tracking-tight">
+    Everything you need for a video call without barriers
+  </h2>
+  <p class="text-lg mt-4 text-slate-600">
+    Our platform offers real-time video calls with automatic translation, connecting people from all over the world regardless of language.  </p>
+</div>
+
+<div class="grid sm:grid-cols-2 md:grid-cols-3 mt-16 gap-16">
+  {
+    features.map((item) => (
+      <div class="flex gap-4 items-start">
+        <div class="mt-1 bg-black rounded-full  p-2 w-8 h-8 shrink-0">
+          <Icon class="text-white" name={item.icon} />
+        </div>
+        <div>
+          <h3 class="font-semibold text-lg">{item.title}</h3>{" "}
+          <p class="text-slate-500 mt-2 leading-relaxed">{item.description}</p>
+        </div>
+      </div>
+    ))
+  }
+</div>
+
+
+

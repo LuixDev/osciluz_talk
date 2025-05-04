@@ -1,0 +1,223 @@
+---
+let currentMonth = new Date();
+let daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+// Almacenar las notas de cada día en un objeto
+let notes: { [key: number]: string } = {}; // Definir el tipo de las notas
+
+// Función para cambiar al mes anterior
+function prevMonth() {
+  currentMonth.setMonth(currentMonth.getMonth() - 1);
+  calendar = generateCalendar(currentMonth);
+  return currentMonth;
+}
+
+// Función para cambiar al mes siguiente
+function nextMonth() {
+  currentMonth.setMonth(currentMonth.getMonth() + 1);
+  calendar = generateCalendar(currentMonth);
+  return currentMonth;
+}
+
+// Generar el calendario basado en el mes actual
+function generateCalendar(month: Date): (number | null)[][] {
+  let startDate = new Date(month.getFullYear(), month.getMonth(), 1);
+  let endDate = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  let days: (number | null)[][] = []; // Arreglo de arreglos de tipo (number | null)
+
+  // Determinar el primer día de la semana del mes
+  let firstDay = startDate.getDay();
+  let totalDays = endDate.getDate();
+
+  // Llenar las celdas del calendario con los días
+  let week: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) {
+    week.push(null); // Espacios en blanco hasta el primer día
+  }
+
+  for (let day = 1; day <= totalDays; day++) {
+    week.push(day);
+    if (week.length === 7) {
+      days.push(week);
+      week = [];
+    }
+  }
+
+  // Rellenar la última semana si es necesario
+  if (week.length > 0) {
+    while (week.length < 7) {
+      week.push(null); // Espacios en blanco
+    }
+    days.push(week);
+  }
+
+  return days;
+}
+
+// Almacenar y actualizar las notas
+function saveNote(day: number, note: string) {
+  if (note) {
+    notes[day] = note;
+  } else {
+    delete notes[day]; // Eliminar la nota si está vacía
+  }
+}
+
+let calendar = generateCalendar(currentMonth);
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calendario</title>
+  </head>
+  <body>
+    <div class="calendario">
+      <div class="header">
+        <button class="control-button" onclick="currentMonth = prevMonth()">Mes Anterior</button>
+        <h3>{currentMonth.toLocaleString('default', { month: 'long' })} {currentMonth.getFullYear()}</h3>
+        <button class="control-button" onclick="currentMonth = nextMonth()">Mes Siguiente</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            {daysOfWeek.map((day) => (
+              <th>{day}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {calendar.map((week) => (
+            <tr>
+              {week.map((day) => (
+                <td>
+                  {day !== null ? (
+                    <>
+                      <div class="day-number">{day}</div>
+                      <input 
+                        type="text" 
+                        class="day-note" 
+                        value={notes[day] || ''} 
+                        placeholder="Escribe algo..." 
+                        oninput="saveNote(day, event.target.value)" 
+                      />
+                    </>
+                  ) : ''}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div class="footer-buttons">
+        <button onclick="alert('Reunión pendiente guardada!')">Guardar Reunión</button>
+        <button onclick="alert('Tarea pendiente guardada!')">Guardar Tarea</button>
+      </div>
+    </div>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f7f7f7;
+        margin: 0;
+        padding: 0;
+      }
+
+      .calendario {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        margin-bottom: 20px;
+      }
+
+      h3 {
+        font-size: 24px;
+        font-weight: bold;
+      }
+
+      .control-button {
+        padding: 10px;
+        background-color: #fff;
+        color: #000;
+        border: 1px solid #000;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+
+      .control-button:hover {
+        background-color: #000;
+        color: #fff;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 80%;
+        margin-bottom: 20px;
+      }
+
+      th, td {
+        width: 60px;
+        height: 60px;
+        text-align: center;
+        border: 1px solid #ddd;
+        padding: 5px;
+      }
+
+      td {
+        cursor: pointer;
+      }
+
+      td:hover {
+        background-color: #f0f0f0;
+      }
+
+      .day-number {
+        font-size: 18px;
+        font-weight: bold;
+      }
+
+      .day-note {
+        width: 100%;
+        padding: 5px;
+        margin-top: 5px;
+        font-size: 12px;
+        border-radius: 3px;
+        border: 1px solid #ccc;
+        display: block;
+      }
+
+      .footer-buttons {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+        gap: 10px;
+      }
+
+      .footer-buttons button {
+        padding: 10px 20px;
+        background-color: #fff;
+        color: #000;
+        border: 1px solid #000;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+
+      .footer-buttons button:hover {
+        background-color: #000;
+        color: #fff;
+      }
+    </style>
+  </body>
+</html>
