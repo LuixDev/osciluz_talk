@@ -3,141 +3,456 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Videollamada estilo Google Meet</title>
+  <title>Osciluz Talk - Videollamada con Traducción</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: 100%;
-      height: 100%;
-      font-family: Arial, sans-serif;
-      background-color: #202124;
-      color: white;
+      width: 100%; height: 100%;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #1a1a2e; color: white; overflow: hidden;
     }
-    
-    video {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100vw;
-  height: 100vh;
-  object-fit: contain;
-}
 
-
-
-
- 
-
-   
-    #localVideo {
- 
+    /* ===== Pre-call Screen ===== */
+    .precall-screen {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       height: 100vh;
-      width: 100vw;
-      border-radius: 8px;
-    
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    }
+    .precall-screen.hidden { display: none; }
+    .precall-logo { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .precall-logo span { color: #4361ee; }
+    .precall-subtitle {
+      color: #8892b0; margin-bottom: 2.5rem;
+      font-size: 1.1rem; text-align: center; max-width: 400px;
+    }
+    .language-options { display: flex; gap: 1.5rem; margin-bottom: 2rem; }
+    .lang-card {
+      padding: 1.5rem 2.5rem; border: 2px solid rgba(255,255,255,0.15);
+      border-radius: 16px; cursor: pointer; transition: all 0.3s;
+      text-align: center; background: rgba(255,255,255,0.04);
+      user-select: none;
+    }
+    .lang-card:hover { border-color: #4361ee; transform: translateY(-3px); box-shadow: 0 8px 25px rgba(67,97,238,0.2); }
+    .lang-card.selected { border-color: #4361ee; background: rgba(67,97,238,0.15); transform: translateY(-3px); }
+    .lang-card .flag { font-size: 3rem; display: block; margin-bottom: 0.5rem; }
+    .lang-card .lang-name { font-size: 1.2rem; font-weight: 600; }
+    .join-btn {
+      padding: 14px 48px; background: #4361ee; border: none;
+      color: white; font-size: 1.1rem; font-weight: 600;
+      border-radius: 12px; cursor: pointer; transition: all 0.3s;
+    }
+    .join-btn:hover { background: #3a56d4; transform: translateY(-1px); }
+    .join-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .precall-note { margin-top: 1.2rem; color: #5a6380; font-size: 0.85rem; text-align: center; max-width: 350px; }
+    .browser-warning {
+      margin-top: 1rem; padding: 10px 20px;
+      background: rgba(234,67,53,0.15); border: 1px solid rgba(234,67,53,0.3);
+      border-radius: 8px; font-size: 0.85rem; color: #ff6b6b;
+      display: none;
     }
 
-    .controls {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 20px;
-      z-index: 3;
+    /* ===== Call Screen ===== */
+    .call-screen { display: none; position: relative; width: 100vw; height: 100vh; background: #202124; }
+    .call-screen.active { display: block; }
+
+    /* Video layout */
+    .video-wrapper { width: 100%; height: 100%; position: relative; }
+    #remoteVideo {
+      width: 100%; height: 100%; object-fit: contain; background: #000;
+    }
+    #localVideo {
+      position: absolute; bottom: 110px; right: 20px;
+      width: 220px; height: 165px; border-radius: 12px;
+      object-fit: cover; border: 2px solid rgba(255,255,255,0.25);
+      z-index: 5; background: #333; transition: all 0.3s;
+    }
+    #localVideo.fullscreen {
+      width: 100%; height: 100%; position: static;
+      border-radius: 0; border: none;
+      object-fit: contain;
     }
 
-    .controls button {
-      background-color: #3c4043;
-      border: none;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 20px;
-      color: white;
-      cursor: pointer;
-      transition: background 0.3s;
+    /* Language indicator */
+    .lang-indicator {
+      position: absolute; top: 16px; left: 16px;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+      padding: 8px 16px; border-radius: 24px;
+      font-size: 0.9rem; z-index: 10;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .listening-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #4caf50; transition: background 0.3s;
+    }
+    .listening-dot.active { animation: pulse 1.2s infinite; }
+    .listening-dot.inactive { background: #666; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(76,175,80,0.5); }
+      50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(76,175,80,0); }
     }
 
-    .controls button:hover {
-      background-color: #5f6368;
+    /* My speech indicator */
+    .my-speech {
+      position: absolute; top: 16px; right: 16px;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+      padding: 8px 16px; border-radius: 24px;
+      font-size: 0.85rem; z-index: 10; max-width: 300px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      opacity: 0; transition: opacity 0.3s;
     }
+    .my-speech.visible { opacity: 1; }
 
-    .hangup {
-      background-color: #ea4335;
-    }
-
-    .hangup:hover {
-      background-color: #d93025;
-    }
-
+    /* Status message */
     .status-message {
-      position: absolute;
-      top: 20px;
-      width: 100%;
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.3rem; color: #8892b0; z-index: 10;
       text-align: center;
-      font-size: 18px;
-      color: #fff;
-      z-index: 10;
+    }
+    .status-message.hidden { display: none; }
+
+    /* Subtitle bar */
+    .subtitle-bar {
+      position: absolute; bottom: 90px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(12px);
+      border-radius: 12px; padding: 14px 28px;
+      max-width: 75%; min-width: 280px; text-align: center;
+      z-index: 10; opacity: 0; transition: opacity 0.4s;
+      pointer-events: none;
+    }
+    .subtitle-bar.visible { opacity: 1; }
+    .subtitle-original { font-size: 0.8rem; color: #8892b0; margin-bottom: 6px; font-style: italic; }
+    .subtitle-translated { font-size: 1.25rem; color: #fff; font-weight: 500; line-height: 1.4; }
+
+    /* Controls bar */
+    .controls {
+      position: absolute; bottom: 20px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; gap: 12px; z-index: 20;
+      padding: 10px 20px;
+      background: rgba(32,33,36,0.85); border-radius: 30px;
+      backdrop-filter: blur(10px);
+    }
+    .controls button {
+      background: #3c4043; border: none; border-radius: 50%;
+      width: 48px; height: 48px;
+      display: flex; justify-content: center; align-items: center;
+      font-size: 18px; color: white; cursor: pointer;
+      transition: all 0.2s; position: relative;
+    }
+    .controls button:hover { background: #5f6368; transform: scale(1.05); }
+    .controls button.active { background: #4361ee; }
+    .controls button.off { background: #ea4335; }
+    .controls button.off:hover { background: #d93025; }
+    .controls button.hangup { background: #ea4335; }
+    .controls button.hangup:hover { background: #d93025; }
+    .controls .separator { width: 1px; background: rgba(255,255,255,0.15); margin: 4px 4px; }
+
+    /* Tooltip */
+    .controls button::after {
+      content: attr(title); position: absolute; bottom: 56px;
+      background: rgba(0,0,0,0.85); color: white;
+      padding: 4px 10px; border-radius: 6px;
+      font-size: 12px; white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .controls button:hover::after { opacity: 1; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .precall-logo { font-size: 1.8rem; }
+      .language-options { gap: 1rem; }
+      .lang-card { padding: 1rem 1.5rem; }
+      .lang-card .flag { font-size: 2.2rem; }
+      .lang-card .lang-name { font-size: 1rem; }
+      #localVideo { width: 130px; height: 100px; bottom: 100px; right: 10px; }
+      .controls { gap: 8px; padding: 8px 14px; }
+      .controls button { width: 42px; height: 42px; font-size: 16px; }
+      .subtitle-bar { max-width: 90%; min-width: 200px; padding: 10px 16px; bottom: 80px; }
+      .subtitle-translated { font-size: 1.05rem; }
+      .my-speech { max-width: 180px; font-size: 0.75rem; }
+    }
+    @media (max-width: 480px) {
+      .controls button { width: 38px; height: 38px; font-size: 14px; }
+      .controls { gap: 6px; padding: 6px 10px; }
+      #localVideo { width: 100px; height: 75px; }
     }
   </style>
 </head>
 <body>
-  <div class="video-container">
-    <div class="status-message" id="statusMessage"></div>
-    <video id="remoteVideo" autoplay playsinline></video>
-    <video id="localVideo" autoplay muted playsinline></video>
+
+  <!-- ===== Pre-call Screen ===== -->
+  <div class="precall-screen" id="precallScreen">
+    <div class="precall-logo">🌐 Osciluz <span>Talk</span></div>
+    <p class="precall-subtitle">
+      Videollamada con traducción en tiempo real<br>
+      <small>Video call with real-time translation</small>
+    </p>
+
+    <p style="color: #a0aec0; margin-bottom: 1rem; font-size: 0.95rem;">
+      Selecciona tu idioma / Select your language
+    </p>
+
+    <div class="language-options">
+      <div class="lang-card" data-lang="es" id="langEs">
+        <span class="flag">🇪🇸</span>
+        <span class="lang-name">Español</span>
+      </div>
+      <div class="lang-card" data-lang="en" id="langEn">
+        <span class="flag">🇺🇸</span>
+        <span class="lang-name">English</span>
+      </div>
+    </div>
+
+    <button class="join-btn" id="joinBtn" disabled>
+      <i class="fas fa-video" style="margin-right: 8px;"></i>
+      Unirse / Join
+    </button>
+
+    <p class="precall-note">
+      Tu voz se traducirá automáticamente al idioma del otro participante.<br>
+      Your voice will be automatically translated to the other participant's language.
+    </p>
+
+    <div class="browser-warning" id="browserWarning">
+      <i class="fas fa-exclamation-triangle" style="margin-right: 6px;"></i>
+      Se recomienda Google Chrome para la traducción en tiempo real.
+      <br>Chrome is recommended for real-time translation.
+    </div>
+  </div>
+
+  <!-- ===== Call Screen ===== -->
+  <div class="call-screen" id="callScreen">
+    <div class="video-wrapper">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <video id="localVideo" autoplay muted playsinline class="fullscreen"></video>
+    </div>
+
+    <div class="lang-indicator" id="langIndicator">
+      <span class="listening-dot inactive" id="listeningDot"></span>
+      <span id="langLabel">--</span>
+    </div>
+
+    <div class="my-speech" id="mySpeech"></div>
+
+    <div class="status-message" id="statusMessage">Conectando... / Connecting...</div>
+
+    <div class="subtitle-bar" id="subtitleBar">
+      <div class="subtitle-original" id="subtitleOriginal"></div>
+      <div class="subtitle-translated" id="subtitleTranslated"></div>
+    </div>
 
     <div class="controls">
       <button id="toggleVideo" title="Cámara"><i class="fas fa-video"></i></button>
       <button id="toggleAudio" title="Micrófono"><i class="fas fa-microphone"></i></button>
-      <button id="shareScreen" title="Presentar pantalla"><i class="fas fa-desktop"></i></button>
+      <div class="separator"></div>
+      <button id="toggleTranslation" title="Traducción" class="active"><i class="fas fa-language"></i></button>
+      <button id="toggleTTS" title="Leer traducción en voz alta"><i class="fas fa-volume-up"></i></button>
+      <div class="separator"></div>
+      <button id="shareScreen" title="Compartir pantalla"><i class="fas fa-desktop"></i></button>
       <button id="startRecording" title="Grabar"><i class="fas fa-record-vinyl"></i></button>
-      <button id="openChat" title="Chat"><i class="fas fa-comments"></i></button>
-      <button id="emojiBtn" title="Emojis"><i class="fas fa-smile"></i></button>
+      <div class="separator"></div>
       <button class="hangup" id="hangupBtn" title="Colgar"><i class="fas fa-phone-slash"></i></button>
     </div>
-    
+  </div>
 
   <script type="module">
-    const signalingServerUrl = 'ws://localhost:3001';
+    // ===================================================================
+    // CONFIGURATION
+    // ===================================================================
+    const WS_URL = import.meta.env.PUBLIC_WS_URL || 'ws://localhost:3001';
+    const TRANSLATION_API = 'https://api.mymemory.translated.net/get';
     const roomId = window.location.pathname.split('/').pop();
-    const socket = new WebSocket(signalingServerUrl);
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ]
+    };
 
-    const localVideo = document.getElementById('localVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
-    const statusMessage = document.getElementById('statusMessage');
-
-    const toggleVideoBtn = document.getElementById('toggleVideo');
-    const toggleAudioBtn = document.getElementById('toggleAudio');
-    const hangupBtn = document.getElementById('hangupBtn');
-
-    let peerConnection;
-    let localStream;
+    // ===================================================================
+    // STATE
+    // ===================================================================
+    let myLanguage = null;
+    let peerLanguage = null;
+    let localStream = null;
+    let peerConnection = null;
+    let dataChannel = null;
+    let socket = null;
     let isInitiator = false;
     let videoEnabled = true;
     let audioEnabled = true;
+    let translationEnabled = true;
+    let ttsEnabled = false;
+    let recognition = null;
+    let isRecognizing = false;
+    let subtitleTimer = null;
+    let mySpeechTimer = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let hasPeer = false;
 
-    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    // ===================================================================
+    // DOM REFERENCES
+    // ===================================================================
+    const precallScreen = document.getElementById('precallScreen');
+    const callScreen = document.getElementById('callScreen');
+    const langEs = document.getElementById('langEs');
+    const langEn = document.getElementById('langEn');
+    const joinBtn = document.getElementById('joinBtn');
+    const browserWarning = document.getElementById('browserWarning');
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const statusMessage = document.getElementById('statusMessage');
+    const langIndicator = document.getElementById('langIndicator');
+    const langLabel = document.getElementById('langLabel');
+    const listeningDot = document.getElementById('listeningDot');
+    const mySpeechEl = document.getElementById('mySpeech');
+    const subtitleBar = document.getElementById('subtitleBar');
+    const subtitleOriginal = document.getElementById('subtitleOriginal');
+    const subtitleTranslated = document.getElementById('subtitleTranslated');
+    const toggleVideoBtn = document.getElementById('toggleVideo');
+    const toggleAudioBtn = document.getElementById('toggleAudio');
+    const toggleTranslationBtn = document.getElementById('toggleTranslation');
+    const toggleTTSBtn = document.getElementById('toggleTTS');
+    const shareScreenBtn = document.getElementById('shareScreen');
+    const startRecordingBtn = document.getElementById('startRecording');
+    const hangupBtn = document.getElementById('hangupBtn');
 
-    function hideStatusIfReady() {
-      if (remoteVideo.srcObject && localVideo.srcObject) {
-        statusMessage.style.display = 'none';
-      }
+    // ===================================================================
+    // CHECK BROWSER SUPPORT
+    // ===================================================================
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      browserWarning.style.display = 'block';
     }
 
+    // ===================================================================
+    // LANGUAGE SELECTION
+    // ===================================================================
+    function selectLanguage(lang) {
+      myLanguage = lang;
+      langEs.classList.toggle('selected', lang === 'es');
+      langEn.classList.toggle('selected', lang === 'en');
+      joinBtn.disabled = false;
+    }
+
+    langEs.addEventListener('click', () => selectLanguage('es'));
+    langEn.addEventListener('click', () => selectLanguage('en'));
+
+    // ===================================================================
+    // JOIN CALL
+    // ===================================================================
+    joinBtn.addEventListener('click', async () => {
+      if (!myLanguage) return;
+      joinBtn.disabled = true;
+      joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Conectando...';
+
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+
+        precallScreen.classList.add('hidden');
+        callScreen.classList.add('active');
+
+        const langName = myLanguage === 'es' ? '🇪🇸 Español' : '🇺🇸 English';
+        langLabel.textContent = langName;
+
+        connectWebSocket();
+      } catch (err) {
+        console.error('Error accessing media devices:', err);
+        joinBtn.disabled = false;
+        joinBtn.innerHTML = '<i class="fas fa-video" style="margin-right:8px;"></i>Unirse / Join';
+        alert('No se pudo acceder a la cámara/micrófono. Verifica los permisos.\nCould not access camera/microphone. Check permissions.');
+      }
+    });
+
+    // ===================================================================
+    // WEBSOCKET SIGNALING
+    // ===================================================================
+    function connectWebSocket() {
+      socket = new WebSocket(WS_URL);
+
+      socket.addEventListener('open', () => {
+        socket.send(JSON.stringify({ type: 'join', roomId }));
+      });
+
+      socket.addEventListener('message', async (event) => {
+        const data = JSON.parse(event.data);
+
+        switch (data.type) {
+          case 'joined':
+            isInitiator = data.isInitiator;
+            if (isInitiator) {
+              statusMessage.textContent = 'Esperando al otro participante... / Waiting for the other participant...';
+            }
+            break;
+
+          case 'peer-joined':
+            setupPeerConnection();
+            if (isInitiator) {
+              await createOffer();
+            }
+            break;
+
+          case 'offer':
+            if (!peerConnection) setupPeerConnection();
+            await handleOffer(data.offer);
+            break;
+
+          case 'answer':
+            await handleAnswer(data.answer);
+            break;
+
+          case 'candidate':
+            if (peerConnection) {
+              await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+            break;
+
+          case 'peer-disconnected':
+            handlePeerDisconnected();
+            break;
+        }
+      });
+
+      socket.addEventListener('close', () => {
+        console.log('WebSocket closed');
+      });
+
+      socket.addEventListener('error', (err) => {
+        console.error('WebSocket error:', err);
+        statusMessage.textContent = 'Error de conexión / Connection error';
+      });
+    }
+
+    // ===================================================================
+    // WEBRTC PEER CONNECTION
+    // ===================================================================
     function setupPeerConnection() {
-      peerConnection = new RTCPeerConnection(config);
-      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      peerConnection = new RTCPeerConnection(rtcConfig);
+
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+
+      // Create DataChannel (initiator creates, other receives)
+      if (isInitiator) {
+        dataChannel = peerConnection.createDataChannel('osciluz-translation', { ordered: true });
+        setupDataChannel(dataChannel);
+      }
+
+      peerConnection.ondatachannel = (event) => {
+        dataChannel = event.channel;
+        setupDataChannel(dataChannel);
+      };
 
       peerConnection.ontrack = (event) => {
         remoteVideo.srcObject = event.streams[0];
-        hideStatusIfReady();
+        onPeerConnected();
       };
 
       peerConnection.onicecandidate = (event) => {
@@ -145,6 +460,30 @@
           socket.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
         }
       };
+
+      peerConnection.onconnectionstatechange = () => {
+        if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
+          handlePeerDisconnected();
+        }
+      };
+    }
+
+    function onPeerConnected() {
+      hasPeer = true;
+      localVideo.classList.remove('fullscreen');
+      statusMessage.classList.add('hidden');
+    }
+
+    function handlePeerDisconnected() {
+      hasPeer = false;
+      localVideo.classList.add('fullscreen');
+      remoteVideo.srcObject = null;
+      statusMessage.textContent = 'El otro participante se desconectó / The other participant disconnected';
+      statusMessage.classList.remove('hidden');
+      stopRecognition();
+      peerLanguage = null;
+      listeningDot.classList.remove('active');
+      listeningDot.classList.add('inactive');
     }
 
     async function createOffer() {
@@ -154,7 +493,7 @@
     }
 
     async function handleOffer(offer) {
-      setupPeerConnection();
+      if (!peerConnection) setupPeerConnection();
       await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
@@ -165,107 +504,335 @@
       await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
     }
 
-    async function start() {
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream;
-        setupPeerConnection();
-        socket.send(JSON.stringify({ type: 'join', roomId }));
-      } catch (err) {
-        statusMessage.textContent = "";
+    // ===================================================================
+    // DATA CHANNEL
+    // ===================================================================
+    function setupDataChannel(channel) {
+      channel.onopen = () => {
+        console.log('DataChannel open');
+        // Send our language to the peer
+        channel.send(JSON.stringify({ type: 'language', lang: myLanguage }));
+        // Start speech recognition
+        startRecognition();
+      };
+
+      channel.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        switch (data.type) {
+          case 'language':
+            peerLanguage = data.lang;
+            console.log('Peer language:', peerLanguage);
+            break;
+
+          case 'transcript':
+            handleReceivedTranscript(data.text, data.lang, data.isFinal);
+            break;
+        }
+      };
+
+      channel.onclose = () => {
+        console.log('DataChannel closed');
+        stopRecognition();
+      };
+    }
+
+    // ===================================================================
+    // SPEECH RECOGNITION
+    // ===================================================================
+    function startRecognition() {
+      if (!SpeechRecognition || !translationEnabled) return;
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = myLanguage === 'es' ? 'es-ES' : 'en-US';
+
+      recognition.onstart = () => {
+        isRecognizing = true;
+        listeningDot.classList.add('active');
+        listeningDot.classList.remove('inactive');
+      };
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        // Show what I'm saying locally
+        if (interimTranscript) {
+          showMySpeech(interimTranscript);
+        }
+
+        // Send final transcript to peer for translation
+        if (finalTranscript && dataChannel && dataChannel.readyState === 'open') {
+          showMySpeech(finalTranscript);
+          dataChannel.send(JSON.stringify({
+            type: 'transcript',
+            text: finalTranscript,
+            lang: myLanguage,
+            isFinal: true
+          }));
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          listeningDot.classList.remove('active');
+          listeningDot.classList.add('inactive');
+        }
+      };
+
+      recognition.onend = () => {
+        isRecognizing = false;
+        // Auto-restart if translation is still enabled and call is active
+        if (translationEnabled && hasPeer && dataChannel && dataChannel.readyState === 'open') {
+          try { recognition.start(); } catch (e) { /* ignore */ }
+        } else {
+          listeningDot.classList.remove('active');
+          listeningDot.classList.add('inactive');
+        }
+      };
+
+      try { recognition.start(); } catch (e) { console.warn('Could not start recognition:', e); }
+    }
+
+    function stopRecognition() {
+      if (recognition && isRecognizing) {
+        translationEnabled = false; // Prevent auto-restart
+        try { recognition.stop(); } catch (e) { /* ignore */ }
+        isRecognizing = false;
+        listeningDot.classList.remove('active');
+        listeningDot.classList.add('inactive');
       }
     }
 
-    socket.addEventListener('message', async (event) => {
-      const data = JSON.parse(event.data);
+    // ===================================================================
+    // TRANSLATION (MyMemory API)
+    // ===================================================================
+    const translationCache = new Map();
 
-      if (data.type === 'offer') {
-        await handleOffer(data.offer);
-      } else if (data.type === 'answer') {
-        await handleAnswer(data.answer);
-      } else if (data.type === 'candidate') {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-      } else if (data.type === 'joined') {
-        if (!isInitiator) {
-          isInitiator = true;
-          await createOffer();
+    async function translateText(text, fromLang, toLang) {
+      if (fromLang === toLang) return text;
+
+      const cacheKey = `${fromLang}|${toLang}|${text.toLowerCase().trim()}`;
+      if (translationCache.has(cacheKey)) {
+        return translationCache.get(cacheKey);
+      }
+
+      try {
+        const url = `${TRANSLATION_API}?q=${encodeURIComponent(text)}&langpair=${fromLang}|${toLang}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.responseStatus === 200 && data.responseData) {
+          const translated = data.responseData.translatedText;
+          translationCache.set(cacheKey, translated);
+          return translated;
         }
+        return text;
+      } catch (err) {
+        console.error('Translation error:', err);
+        return text;
+      }
+    }
+
+    // ===================================================================
+    // HANDLE RECEIVED TRANSCRIPT
+    // ===================================================================
+    async function handleReceivedTranscript(text, sourceLang, isFinal) {
+      if (!translationEnabled || !isFinal) return;
+
+      const targetLang = myLanguage;
+      if (sourceLang === targetLang) {
+        showSubtitle(text, text);
+        return;
+      }
+
+      // Show original text immediately
+      subtitleOriginal.textContent = text;
+      subtitleTranslated.textContent = '...';
+      subtitleBar.classList.add('visible');
+
+      // Translate
+      const translated = await translateText(text, sourceLang, targetLang);
+      showSubtitle(text, translated);
+
+      // Text-to-speech if enabled
+      if (ttsEnabled && translated) {
+        speakText(translated, targetLang);
+      }
+    }
+
+    // ===================================================================
+    // SUBTITLE DISPLAY
+    // ===================================================================
+    function showSubtitle(original, translated) {
+      subtitleOriginal.textContent = original;
+      subtitleTranslated.textContent = translated;
+      subtitleBar.classList.add('visible');
+
+      clearTimeout(subtitleTimer);
+      subtitleTimer = setTimeout(() => {
+        subtitleBar.classList.remove('visible');
+      }, 6000);
+    }
+
+    function showMySpeech(text) {
+      mySpeechEl.textContent = '🎤 ' + text;
+      mySpeechEl.classList.add('visible');
+
+      clearTimeout(mySpeechTimer);
+      mySpeechTimer = setTimeout(() => {
+        mySpeechEl.classList.remove('visible');
+      }, 3000);
+    }
+
+    // ===================================================================
+    // TEXT-TO-SPEECH
+    // ===================================================================
+    function speakText(text, lang) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang === 'es' ? 'es-ES' : 'en-US';
+      utterance.rate = 1.0;
+      utterance.volume = 0.8;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // ===================================================================
+    // CONTROL BUTTONS
+    // ===================================================================
+
+    // Toggle Video
+    toggleVideoBtn.addEventListener('click', () => {
+      videoEnabled = !videoEnabled;
+      localStream.getVideoTracks().forEach(t => t.enabled = videoEnabled);
+      toggleVideoBtn.innerHTML = videoEnabled
+        ? '<i class="fas fa-video"></i>'
+        : '<i class="fas fa-video-slash"></i>';
+      toggleVideoBtn.classList.toggle('off', !videoEnabled);
+    });
+
+    // Toggle Audio
+    toggleAudioBtn.addEventListener('click', () => {
+      audioEnabled = !audioEnabled;
+      localStream.getAudioTracks().forEach(t => t.enabled = audioEnabled);
+      toggleAudioBtn.innerHTML = audioEnabled
+        ? '<i class="fas fa-microphone"></i>'
+        : '<i class="fas fa-microphone-slash"></i>';
+      toggleAudioBtn.classList.toggle('off', !audioEnabled);
+    });
+
+    // Toggle Translation
+    toggleTranslationBtn.addEventListener('click', () => {
+      translationEnabled = !translationEnabled;
+      toggleTranslationBtn.classList.toggle('active', translationEnabled);
+      toggleTranslationBtn.classList.toggle('off', !translationEnabled);
+
+      if (translationEnabled) {
+        if (!isRecognizing && hasPeer && dataChannel && dataChannel.readyState === 'open') {
+          startRecognition();
+        }
+      } else {
+        if (recognition && isRecognizing) {
+          try { recognition.stop(); } catch (e) { /* ignore */ }
+        }
+        subtitleBar.classList.remove('visible');
+        mySpeechEl.classList.remove('visible');
+        listeningDot.classList.remove('active');
+        listeningDot.classList.add('inactive');
       }
     });
 
-    toggleVideoBtn.addEventListener('click', () => {
-      videoEnabled = !videoEnabled;
-      localStream.getVideoTracks()[0].enabled = videoEnabled;
-      toggleVideoBtn.innerHTML = videoEnabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+    // Toggle TTS
+    toggleTTSBtn.addEventListener('click', () => {
+      ttsEnabled = !ttsEnabled;
+      toggleTTSBtn.classList.toggle('active', ttsEnabled);
+      if (!ttsEnabled && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     });
 
-    toggleAudioBtn.addEventListener('click', () => {
-      audioEnabled = !audioEnabled;
-      localStream.getAudioTracks()[0].enabled = audioEnabled;
-      toggleAudioBtn.innerHTML = audioEnabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+    // Share Screen
+    shareScreenBtn.addEventListener('click', async () => {
+      try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const screenTrack = screenStream.getVideoTracks()[0];
+        const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender) sender.replaceTrack(screenTrack);
+        localVideo.srcObject = screenStream;
+
+        screenTrack.onended = () => {
+          const camTrack = localStream.getVideoTracks()[0];
+          if (sender) sender.replaceTrack(camTrack);
+          localVideo.srcObject = localStream;
+        };
+      } catch (err) {
+        console.warn('Screen share cancelled or failed:', err);
+      }
     });
 
+    // Recording
+    startRecordingBtn.addEventListener('click', () => {
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        recordedChunks = [];
+
+        // Record both local and remote if available
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 1280;
+        canvas.height = 720;
+
+        const streamToRecord = localStream;
+        mediaRecorder = new MediaRecorder(streamToRecord, { mimeType: 'video/webm;codecs=vp9' });
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `osciluz-recording-${Date.now()}.webm`;
+          a.click();
+          URL.revokeObjectURL(url);
+          startRecordingBtn.classList.remove('off');
+          startRecordingBtn.innerHTML = '<i class="fas fa-record-vinyl"></i>';
+        };
+
+        mediaRecorder.start(1000);
+        startRecordingBtn.classList.add('off');
+        startRecordingBtn.innerHTML = '<i class="fas fa-stop"></i>';
+      } else {
+        mediaRecorder.stop();
+      }
+    });
+
+    // Hang Up
     hangupBtn.addEventListener('click', () => {
+      stopRecognition();
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
       if (peerConnection) peerConnection.close();
-      socket.close();
-      window.location.href = '/'; // Redirigir o mostrar mensaje de finalización
+      if (socket) socket.close();
+      if (localStream) localStream.getTracks().forEach(t => t.stop());
+      window.location.href = '/';
     });
 
-
-
-    document.getElementById('shareScreen').addEventListener('click', async () => {
-  try {
-    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-    const screenTrack = screenStream.getVideoTracks()[0];
-    const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
-    if (sender) sender.replaceTrack(screenTrack);
-
-    screenTrack.onended = () => {
-      // Volver a la cámara cuando se detiene el compartir pantalla
-      const camTrack = localStream.getVideoTracks()[0];
-      if (sender) sender.replaceTrack(camTrack);
-    };
-  } catch (err) {
-    alert('Error al compartir pantalla');
-  }
-});
-
-// Grabación (solo local)
-let mediaRecorder;
-let recordedChunks = [];
-
-document.getElementById('startRecording').addEventListener('click', () => {
-  if (!mediaRecorder || mediaRecorder.state === "inactive") {
-    recordedChunks = [];
-    mediaRecorder = new MediaRecorder(localStream);
-    mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(recordedChunks, { type: "video/webm" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "grabacion.webm";
-      a.click();
-    };
-    mediaRecorder.start();
-    alert("Grabación iniciada");
-  } else {
-    mediaRecorder.stop();
-    alert("Grabación detenida");
-  }
-});
-
-// Chat
-document.getElementById('openChat').addEventListener('click', () => {
-  alert('Aquí se abriría una ventana de chat (pendiente de implementación real)');
-});
-
-// Emojis
-document.getElementById('emojiBtn').addEventListener('click', () => {
-  alert('Aquí se mostrarían emojis para enviar (pendiente de implementación real)');
-});
-
-    start();
   </script>
 </body>
 </html>
