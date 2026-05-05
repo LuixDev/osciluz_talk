@@ -15,7 +15,11 @@
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     }
     .precall-screen.hidden { display: none; }
-    .precall-logo { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .precall-logo {
+      display: flex; align-items: center; gap: 0.75rem;
+      font-size: 2.5rem; font-weight: 700; margin-bottom: 0.3rem;
+    }
+    .precall-logo img { height: 3.5rem; width: auto; }
     .precall-logo span { color: #4361ee; }
     .precall-subtitle {
       color: #8892b0; margin-bottom: 2.5rem;
@@ -158,6 +162,7 @@
     /* Responsive */
     @media (max-width: 768px) {
       .precall-logo { font-size: 1.8rem; }
+      .precall-logo img { height: 2.5rem; }
       .language-options { gap: 1rem; }
       .lang-card { padding: 1rem 1.5rem; }
       .lang-card .flag { font-size: 2.2rem; }
@@ -178,7 +183,7 @@
 
   <!-- ===== Pre-call Screen ===== -->
   <div class="precall-screen" id="precallScreen">
-    <div class="precall-logo">🌐 Osciluz <span>Talk</span></div>
+    <div class="precall-logo"><img src="/logo.png" alt="Osciluz Logo"> Osciluz <span>Talk</span></div>
     <p class="precall-subtitle">
       Videollamada con traducción en tiempo real<br>
       <small>Video call with real-time translation</small>
