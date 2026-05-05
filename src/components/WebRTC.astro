@@ -1,11 +1,5 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Osciluz Talk - Videollamada con Traducción</title>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-  <style>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style is:inline>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       width: 100%; height: 100%;
@@ -181,8 +175,6 @@
       #localVideo { width: 100px; height: 75px; }
     }
   </style>
-</head>
-<body>
 
   <!-- ===== Pre-call Screen ===== -->
   <div class="precall-screen" id="precallScreen">
@@ -259,11 +251,11 @@
     </div>
   </div>
 
-  <script type="module">
+  <script is:inline>
     // ===================================================================
     // CONFIGURATION
     // ===================================================================
-    const WS_URL = import.meta.env.PUBLIC_WS_URL || 'ws://localhost:3001';
+    const WS_URL = (window.__OSCILUZ_WS_URL) || 'ws://localhost:3001';
     const TRANSLATION_API = 'https://api.mymemory.translated.net/get';
     const roomId = window.location.pathname.split('/').pop();
     const rtcConfig = {
@@ -834,5 +826,3 @@
     });
 
   </script>
-</body>
-</html>
