@@ -3,12 +3,14 @@ export const prerender = false;
 import WebRTC from "../../components/WebRTC.astro";
 ---
 
-<html>
+<html lang="es">
   <head>
-    <title>Videollamada</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/logo.png" type="image/png" />
+    <title>Osciluz Talk - Videollamada</title>
   </head>
   <body>
-    <!-- Aquí estamos integrando WebRTC -->
     <WebRTC />
   </body>
 </html>
